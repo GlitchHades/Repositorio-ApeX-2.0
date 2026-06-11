@@ -6,14 +6,21 @@ package frc.robot;
 
 import com.ctre.phoenix6.HootAutoReplay;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+
 
 public class Robot extends TimedRobot {
     private Command m_autonomousCommand;
 
     private final RobotContainer m_robotContainer;
+
+    private Field2d field = new Field2d();
 
     /* log and replay timestamp and joystick data */
     private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
@@ -22,12 +29,23 @@ public class Robot extends TimedRobot {
 
     public Robot() {
         m_robotContainer = new RobotContainer();
+
+        Pose2d robot = new Pose2d(0, 0, new Rotation2d(Math.PI));
+
+        SmartDashboard.putData("FIELD", field);
+        field.getObject("Robot").setPose(robot);
+
+        m_robotContainer.Artic.setZeroArticulated();
+        m_robotContainer.shooter.setZeroHood();
+        m_robotContainer.climb.setZeroClimber();
     }
 
     @Override
     public void robotPeriodic() {
         m_timeAndJoystickReplay.update();
         CommandScheduler.getInstance().run(); 
+
+        field.setRobotPose(m_robotContainer.drivetrain.getState().Pose);
     }
 
     @Override
