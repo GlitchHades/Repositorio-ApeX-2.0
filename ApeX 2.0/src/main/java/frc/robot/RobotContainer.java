@@ -6,237 +6,204 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.util.function.BooleanSupplier;
+
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.generated.*;
 import frc.robot.subsystems.*;
+import frc.robot.subsystems.Intake.intake;
+import frc.robot.subsystems.InterpolatingTreeMap.ShooterMap;
+import frc.robot.subsystems.Shooter.hood;
+import frc.robot.subsystems.Shooter.indexer;
+import frc.robot.subsystems.Shooter.shooterMotors;
 
 public class RobotContainer {
-    private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
-
-    /* Setting up bindings for necessary control of the swerve drive platform */
+    private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); 
+    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
             
     private final CommandXboxController Xbox = new CommandXboxController(0);
 
+    private final PIDController headingPid = new PIDController(8.0, 0.0, 0.0);
+
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-    public Articulated Artic = new Articulated();
-    public Climb climb = new Climb();
-    public Shooter shooter= new Shooter();
+    public hood Hood = new hood();
+    public indexer index = new indexer();
+    public shooterMotors shooter = new shooterMotors(index);    
+    public intake intake = new intake();
 
     public double intakeVar = 0;
     public double climbMove = 0;
 
-    public double netProtection = 19;
+    private Rotation2d lockedHeading = new Rotation2d(); 
+    private boolean isHeadingLocked = false;
+
+    @SuppressWarnings("unused")
+    private boolean isAimLocked = false;
+    public double intakeCheckpoint = 40;
+
+    private ShooterMap.ShotParams calculoShooterParametros(Pose2d robotPose, double distanceHood) {
+        double blueX = 4.298;   
+        double redX = 12.41;
+
+        if ((robotPose.getX() >= blueX - 0.2 && robotPose.getX() <= (blueX - 0.2) + 1.2) || 
+            (robotPose.getX() >= (redX + 0.2) - 1.2 && robotPose.getX() <= redX + 0.2)) {
+            return new ShooterMap.ShotParams(0, 0);
+        }
+        
+        boolean isRed = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+        if ((isRed && robotPose.getX() <= 4.6) || (!isRed && robotPose.getX() >= 11.9)) {
+            return new ShooterMap.ShotParams(2, 6000);
+        }
+        
+        return ShooterMap.get(distanceHood);
+    }
+
+    private ShooterMap.ShotParams getParametrosDeTiroAtuais() { 
+
+        Pose2d robotPose = drivetrain.getState().Pose; 
+
+        boolean isRed = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+        Translation2d hub = isRed ? new Translation2d(12.05, 4.03) : new Translation2d(4.6, 4.03);
+
+        double distanciaAteOAlvo = robotPose.getTranslation().getDistance(hub);
+
+        return calculoShooterParametros(robotPose, distanciaAteOAlvo);
+    }   
 
     public RobotContainer() {
+        headingPid.enableContinuousInput(-Math.PI, Math.PI);
+        headingPid.setTolerance(Math.toRadians(0.5));
         configureBindings();
     }
 
     private void configureBindings() {
 
         /* Swerve drive */
-        drivetrain.setDefaultCommand(drivetrain.applyRequest(() -> { return drive
-            .withVelocityX(-Xbox.getLeftY() * MaxSpeed * Xbox.getRightTriggerAxis())
-            .withVelocityY(-Xbox.getLeftX() * MaxSpeed * Xbox.getRightTriggerAxis())
-            .withRotationalRate(-Xbox.getRightX() * MaxSpeed);
+        drivetrain.setDefaultCommand(drivetrain.applyRequest(() -> {
+
+        double R2 = Xbox.getRightTriggerAxis();
+        double leftY = -Xbox.getLeftY();
+        double leftX = -Xbox.getLeftX();
+        double rightX = -Xbox.getRightX();
+        double rotOutput = 0.0;
+
+            Pose2d poseAtual = drivetrain.getState().Pose;
+
+            double vxField = leftY * MaxSpeed * R2;
+            double vyField = leftX * MaxSpeed * R2;
+
+            rotOutput = rightX;
+
+            if (Xbox.rightBumper().getAsBoolean()) {
+                isAimLocked = false;
+                isHeadingLocked = false; 
+
+                boolean isRed = DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue) == DriverStation.Alliance.Red;
+                double alvoX = isRed ? 12.05 : 4.6;
+                double alvoY = isRed ? 4.03 : 4.03;
+
+                double diferencaX = alvoX - poseAtual.getX();
+                double diferencaY = alvoY - poseAtual.getY();
+
+                Rotation2d anguloProHubContinuo = new Rotation2d(diferencaX, diferencaY);
+
+                double calcVisao = headingPid.calculate(poseAtual.getRotation().getRadians(), anguloProHubContinuo.getRadians());
+
+                rotOutput = headingPid.atSetpoint() ? 0.0 : calcVisao;
+                rotOutput = MathUtil.clamp(rotOutput, -0.7, 0.7);
+            }
+
+            else if (headingPid.atSetpoint() == true) {
+                isAimLocked = true;
+            }
+
+            else if (Math.abs(rightX) > 0) {
+                isAimLocked = false; 
+                    
+                if (isHeadingLocked) {
+                    isHeadingLocked = false;
+                    headingPid.reset(); 
+                }
+
+                rotOutput = rightX * MaxAngularRate;
+                }
+            else {
+                isAimLocked = false; 
+                    
+                if (!isHeadingLocked) {
+                    lockedHeading = poseAtual.getRotation();
+                    headingPid.reset(); 
+                    isHeadingLocked = true;
+                }
+                    
+                double calcTrava = headingPid.calculate(
+                    poseAtual.getRotation().getRadians(),
+                    lockedHeading.getRadians()
+                );
+
+                rotOutput = headingPid.atSetpoint() ? 0.0 : calcTrava;
+                rotOutput = MathUtil.clamp(rotOutput, -0.7, 0.7);
+                }
+
+            return drive
+            .withVelocityX(vxField)
+            .withVelocityY(vyField)
+            .withRotationalRate(rotOutput);
         }));
 
-        Xbox.start().onTrue(drivetrain.runOnce(() -> drivetrain.configAngleInit()));
+        Xbox.rightBumper().whileTrue(Commands.parallel(autoMiraEPrepara, shooter.indexerWhileShootin()));
+        //triggerCondition(Xbox.rightBumper(),Commands.parallel(shooter.setShooterRPM(1000, 1000),Commands.waitSeconds(0.5),autoMiraEPrepara, shooter.indexerWhileShootin()));
+        Xbox.rightBumper().onFalse(shooter.stopMotors());        
+
+        Xbox.start().onTrue(drivetrain.runOnce(() -> drivetrain.configurarAnguloInicial()));
         /* Swerve drive */
-
-        /* Zerar Comandos */
-
-        Trigger voltarIntake = Xbox.b().and(() -> Climb.getPosition() < 10);
-
-        Xbox.b().onTrue(zerarComandos());
-
-        new Trigger(voltarIntake).onTrue(Commands.runOnce(() -> Articulated.setArticulated(0.1, 0, 0.5)));
-
-        /* Zerar comandos */
-
-        /* Intake */
 
         Xbox.leftBumper().onTrue(Commands.runOnce(() -> intakeVar ++));
 
-        new Trigger(() -> intakeVar == 1).onTrue(intakePreOn());
-        new Trigger(() -> intakeVar == 1).onTrue(intakeOn(5000));
+        triggerCondition(() -> intakeVar == 1,
+        Commands.parallel(intake.deployIntake(150, 0, 0)));
+        triggerCondition(() -> intake.getAngle() > intakeCheckpoint, intake.setRPMintake(3500, 3500));
+        triggerCondition(() -> intakeVar == 2, Commands.runOnce(() -> intakeVar = 1));
 
-        new Trigger(() -> intakeVar >= 2).onTrue(intakeOff());
-
-        /* Intake */
-
-        /* Shooter & ASSISTANCE INDEXER */
-
-        // Gatilho unificado: Right Bumper + Botão X + Shooter Indexando
-        Trigger assistIndexerTrigger = Xbox.rightBumper().and(Xbox.x()).and(shooter::getIndexando);
-
-        // 1. Quando a condição iniciar, move a articulação do Intake
-        assistIndexerTrigger.onTrue(Commands.runOnce(() -> Articulated.setArticulated(0.015, 0, 0.2)));
-
-        // 2. Se a posição for maior que 19 , liga o rolete do Intake a 2500 RPM
-        assistIndexerTrigger.and(() -> Articulated.getArticulatedPosition() > netProtection)
-                .onTrue(Commands.runOnce(() -> Artic.setIntakeRPM(2500)));
-                
-        // 3. Se a posição for menor ou igual ao 19 , desliga o rolete
-        assistIndexerTrigger.and(() -> Articulated.getArticulatedPosition() <= netProtection)
-                .onTrue(Commands.runOnce(() -> Artic.setIntakeRPM(0)));
-
-        // 4. Ao soltar o botão X, roda o comando de desligar o sistema
-        Xbox.x().onFalse(indexerIntakeOff());
-
-        // 5. Nova lógica do Climber baseada na posição da articulação do Intake
-        new Trigger(() -> Articulated.getArticulatedPosition() > 2
-                        && Articulated.getArticulatedPosition() < 8 
-                        && climbMove == 1)
-                .onTrue(indexerClimb());
-
-        // Gatilho padrão do disparo do shooter
-        Xbox.rightBumper().whileTrue(createShooterCommand());
-        Xbox.rightBumper().onFalse(endShooter());
-
-        Trigger dispenser = Xbox.a().and(() -> Articulated.getArticulatedPosition() > netProtection);
-        dispenser.onTrue(dispenserOn());
-        dispenser.onFalse(dispenserOff());
-
-        /* Shooter */
-
-        /* Climb */
-
-        Xbox.povUp().onTrue(setClimb(98.0));
-        Xbox.povDown().onTrue(setClimb(0));
-        
-        /* Climb */
+        Xbox.b().onTrue(BasePosition());
 
     }
 
-    /**
-     * Move o climb para a posição desejada.
-     * @param position Seta a posição desejada do climber.
-     * @return Comando que move o climb
-     */
-    Command setClimb(double position){
-        return Commands.runOnce(() -> climb.setPosition(position, 1));
-    }
+    Command autoMiraEPrepara = Commands.parallel(
+        shooter.setDynamicSpeeds(() -> getParametrosDeTiroAtuais().rpm),
+        Hood.setHoodPosition(() -> getParametrosDeTiroAtuais().hoodPosition)
+    );
 
-    private Command createShooterCommand() {
-    return shooter;
-}
-
-    /**
-     * Move o climb para a posição de coleta
-     */
-    Command comandoColeta = Commands.sequence(
-        Commands.runOnce(() -> Articulated.setArticulated(0.1, 22.394, 0.5))
-        , setClimb(98) 
-        ,intakeOn(5000));
-
-    /**
-     * Zerar tudo para o standby
-     */
-    Command zerarComandos(){
+    Command BasePosition(){
         return new SequentialCommandGroup(
-            Commands.runOnce(() -> Shooter.stopShooterSpeed()),
-            Commands.runOnce(() -> Shooter.stopIndexSpeed()),
-            Commands.runOnce(() -> Shooter.stopBelt()),
-            Commands.runOnce(() -> Artic.setIntakeRPM(0)));
+            intake.setIntakePosition(0),
+            intake.stopMotors(),
+            shooter.stopMotors(),
+            index.stopMotors());
     }
-
-    /**
-     * Posiciona o climber para baixo.
-     * @param null
-     * @return sequencia de comandos necessarios para executar a ação.
-     */
-    Command indexerClimb(){
-        return new SequentialCommandGroup(
-            setClimb(0),
-            Commands.runOnce(() -> climbMove = 0));
+    
+    private void triggerCondition(BooleanSupplier condition, Command command) {
+        new Trigger(condition).onTrue(command);
     }
-
-        /**
-     * Finaliza os comandos relacionados ao disparo e posiciona o intake para coleta novamente.
-     * @param null
-     * @return sequencia de comandos necessarios para executar a ação.
-     */
-
-    Command endShooter(){
-        return new SequentialCommandGroup(
-            Commands.runOnce(() -> shooter.end()),
-            Commands.runOnce(() -> Artic.setIntakeRPM(0)),
-            Commands.runOnce(() -> Articulated.setArticulated(0.1, 22.394, 0.5))
-            );
-    }
-
-    Command intakeOn(double RPM){
-        return Commands.runOnce(() -> Artic.setIntakeRPM(RPM));
-    }
-
-    /**
-     * Realiza a coleta de Fuels.
-     * @param RPM RPM do intake.
-     * @return sequencia de comandos necessarios para executar a ação.
-     */
-    Command intakePreOn(){
-        return new SequentialCommandGroup(
-            Commands.runOnce(() -> Articulated.setArticulated(0.1, 22.394, 0.5)),
-            setClimb(98));
-    }
-
-    Command intakeOff(){
-        return new SequentialCommandGroup(
-        Commands.runOnce(() -> Artic.setIntakeRPM(0)),
-        new InstantCommand(() -> intakeVar = 0)
-        );
-    }
-
-    /**
-     * Realiza sequencia de acionamentos para ejetar o fuel pelo intake.
-     * @param null
-     * @return sequencia de comandos necessarios para executar a ação.
-     */
-    Command dispenserOn(){
-        return new SequentialCommandGroup(
-            Commands.runOnce(() -> Artic.setIntakeRPM(-3500)),
-            Commands.runOnce(() -> shooter.setBeltRPM(-4000)),
-            Commands.runOnce(() -> shooter.setIndexRPM(-3000)),
-            Commands.runOnce(() -> shooter.setFeedRPM(-1500)));
-    }
-
-    /**
-     * Desliga o sistema de ejetar fuel.
-     * @param null
-     * @return sequencia de comandos necessarios para executar a ação.
-     */
-    Command dispenserOff(){
-        return new SequentialCommandGroup(
-            Commands.runOnce(() -> Artic.setIntakeRPM(0)),
-            Commands.runOnce(() -> shooter.setBeltRPM(0)),
-            Commands.runOnce(() -> shooter.setIndexRPM(0)));
-    }
-
-    /**
-     * Desliga o sistema de auxilio de fuels com intake.
-     * @param null
-     * @return sequencia de comandos necessarios para executar a ação.
-     */
-    Command indexerIntakeOff(){
-        return new SequentialCommandGroup(
-            Commands.runOnce(() -> Artic.setIntakeRPM(0)),
-            Commands.runOnce(() -> Articulated.setArticulated(0.1, 22.394, 0.5)),
-            Commands.runOnce(() -> intakeVar = 0));
-    }
-
-    public Command getAutonomousCommand() {
+ 
+    Command getAutonomousCommand() {
         throw new UnsupportedOperationException("Unimplemented method 'getAutonomousCommand'");
     }
 }

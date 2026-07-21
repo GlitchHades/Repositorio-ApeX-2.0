@@ -1,0 +1,108 @@
+{
+  "NTProvider": {
+    "types": {
+      "/FMSInfo": "FMSInfo",
+      "/SmartDashboard/Elevator/mechanism": "Mechanism2d",
+      "/SmartDashboard/FIELD": "Field2d",
+      "/SmartDashboard/HoodMech/mechanism": "Mechanism2d",
+      "/SmartDashboard/Indexer_Flywheel/mechanism": "Mechanism2d",
+      "/SmartDashboard/IntakeMech/mechanism": "Mechanism2d",
+      "/SmartDashboard/Mechanisms/Commands/Climb/Live Tuning": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ElevatorMotor/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ElevatorMotor/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ElevatorMotor/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/HoodMotor/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/HoodMotor/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/HoodMotor/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/Indexer_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/Indexer_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/Indexer_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/IntakeMotor/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/IntakeMotor/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/IntakeMotor/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ShooterL_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ShooterL_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ShooterL_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ShooterR_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ShooterR_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/ShooterR_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/belt_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/belt_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/belt_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/feed/Live Tuning": "Command",
+      "/SmartDashboard/Mechanisms/Commands/feeder_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/feeder_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/feeder_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/hood/Live Tuning": "Command",
+      "/SmartDashboard/Mechanisms/Commands/indexer/Live Tuning": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intake/Live Tuning": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeL_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeL_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeL_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeR_FlyWheel/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeR_FlyWheel/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeR_FlyWheel/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/shooterMotors/Live Tuning": "Command",
+      "/SmartDashboard/ShooterL_Flywheel/mechanism": "Mechanism2d",
+      "/SmartDashboard/ShooterR_Flywheel/mechanism": "Mechanism2d",
+      "/SmartDashboard/belt_Flywheel/mechanism": "Mechanism2d",
+      "/SmartDashboard/feeder_Flywheel/mechanism": "Mechanism2d",
+      "/SmartDashboard/intakeL_Flywheel/mechanism": "Mechanism2d",
+      "/SmartDashboard/intakeR_Flywheel/mechanism": "Mechanism2d"
+    },
+    "windows": {
+      "/SmartDashboard/Elevator/mechanism": {
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/FIELD": {
+        "bottom": 1914,
+        "height": 8.069275856018066,
+        "left": 245,
+        "right": 3942,
+        "top": 118,
+        "width": 16.54119300842285,
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/HoodMech/mechanism": {
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/IntakeMech/mechanism": {
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/ShooterR_Flywheel/mechanism": {
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/belt_Flywheel/mechanism": {
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/feeder_Flywheel/mechanism": {
+        "window": {
+          "visible": true
+        }
+      },
+      "/SmartDashboard/intakeL_Flywheel/mechanism": {
+        "window": {
+          "visible": true
+        }
+      }
+    }
+  },
+  "NetworkTables Info": {
+    "visible": true
+  },
+  "NetworkTables View": {
+    "visible": false
+  }
+}
