@@ -8,20 +8,19 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
-import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
-import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -62,12 +61,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     @SuppressWarnings("unused")
     private double colisionProtect = 1;
 
-    private double OmegaCmd = 0;
 
-    @SuppressWarnings("unused")
-    private double fixedAngle = 0;
+    public boolean alinhoAuto = false;
 
-    PIDController headingPID = new PIDController(0.025, 0.0, 0.001);
+    PIDController headingPID = new PIDController(0.3, 0.0, 0.0);
+    {
+            headingPID.enableContinuousInput(-180, 180);
+            headingPID.setTolerance(2.0);
+    }
+
 
 
     /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
@@ -242,19 +244,33 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return m_sysIdRoutineToApply.dynamic(direction);
     }
 
-    // Config de angulo
-    public void configAngleInit() {
-        // Caso verdadeiro/Vermelho (0.0) Caso falso/Azul (180.0)
-        double newAngle = 0.0;
+    /**
+     * Define o ângulo inicial do robô baseado na aliança.
+     * Como o TunerConstants já tem MountPoseYaw(180), aqui usamos a lógica padrão:
+     * Red = 180 graus (olhando para o fundo do campo Azul)
+     * Blue = 0 graus (olhando para o fundo do campo Vermelho)
+     */
+    public void configurarAnguloInicial() {
+        //pega a aliança da driver station
+        var alliance = DriverStation.getAlliance();
+        
+        // Padrão FRC: Se for Vermelho olha pro Azul (0), se for Azul olha pro Vermelho (180)
+        double novoAngulo = (alliance.isPresent() && alliance.get() == Alliance.Red) ? 180.0 : 0.0;
 
-        this.getPigeon2().setYaw(newAngle);
-        // Da um intervalo de 20 milisegundos para a configuração
+        // 1. A SOLUÇÃO DO FENÓMENO 1: Força o hardware do chip do Pigeon a zerar!
+        // Isso faz o Shuffleboard e o Fator de Escala voltarem a ler 0 na mesma hora.
+        this.getPigeon2().setYaw(novoAngulo);
+        
+        // Dá um pequeno fôlego (20ms) para o chip do Pigeon comunicar com os motores
+        //para o que o codigo estiver fazendo pelo proximo ciclo de periodic.
         try { Thread.sleep(20); } catch (Exception e) {}
 
-        Pose2d currentPose = this.getState().Pose;
-        this.resetPose(new Pose2d(currentPose.getTranslation(), Rotation2d.fromDegrees(newAngle)));
+        // 2. Reseta o GPS Virtual (Odometria)
+        // reseta a pose de acordo com a aliança. 
+        Pose2d poseAtual = this.getState().Pose;
+        this.resetPose(new Pose2d(poseAtual.getTranslation(), Rotation2d.fromDegrees(novoAngulo)));
         
-        System.out.println("Giroscópio Resetado fisicamente para: " + newAngle + " graus");
+        System.out.println("Giroscópio Resetado fisicamente para: " + novoAngulo + " graus");
     }
 
     @Override
@@ -273,61 +289,18 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         double YawRaw = this.getPigeon2().getYaw().getValueAsDouble();
         SmartDashboard.putNumber("Angulo Puro", YawRaw);
 
-        var mt2Front = LimelightHelpers.getBotPoseEstimate_wpiBlue(frontCAM);
-
-        Pose2d currentPose = this.getState().Pose;
-        Rotation2d heading = currentPose.getRotation();
-        ChassisSpeeds fieldSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(getState().Speeds, heading);
-        double speedX = fieldSpeeds.vxMetersPerSecond;        
-    
-        if(Climb.getPosition() >= 1){
-            if(currentPose.getX() >= 4.628 - 1 && currentPose.getX() <= 4.628 + 1){
-                if((currentPose.getY() >= 0 && currentPose.getY() <= 1.4)){
-                    if((currentPose.getX() - 4.628) < 0 && speedX > 0.5 || (currentPose.getX() - 4.628) > 0 && speedX < -0.5) colisionProtect = 0.25; 
-                    if((currentPose.getX() - 4.628) < 0 && speedX < -0.5 || (currentPose.getX() - 4.628) > 0 && speedX > 0.5) colisionProtect = 1;
-                }
-                else if((currentPose.getY() >= 6.393 && currentPose.getY() <= 8.2)){
-                    if((currentPose.getX() - 4.628) < 0 && speedX > 0.5 || (currentPose.getX() - 4.628) > 0 && speedX < -0.5) colisionProtect = 0.25; 
-                    if((currentPose.getX() - 4.628) < 0 && speedX < -0.5 || (currentPose.getX() - 4.628) > 0 && speedX > 0.5) colisionProtect = 1;
-                }
-                else{
-                    colisionProtect = 1;
-                }
-            }
-            else if(currentPose.getX() >= 11.927 - 1 && currentPose.getX() <= 11.927 + 1){
-                if((currentPose.getY() >= 0 && currentPose.getY() <= 1.4)){
-                    if((currentPose.getX() - 11.927) < 0 && speedX > 0.5 || (currentPose.getX() - 11.927) > 0 && speedX < -0.5) colisionProtect = 0.25; 
-                    if((currentPose.getX() - 11.927) < 0 && speedX < -0.5 || (currentPose.getX() - 11.927) > 0 && speedX > 0.5) colisionProtect = 1;
-                }
-                else if((currentPose.getY() >= 6.393 && currentPose.getY() <= 8.2)){
-                    if((currentPose.getX() - 11.927) < 0 && speedX > 0.5 || (currentPose.getX() - 11.927) > 0 && speedX < -0.5) colisionProtect = 0.25; 
-                    if((currentPose.getX() - 11.927) < 0 && speedX < -0.5 || (currentPose.getX() - 11.927) > 0 && speedX > 0.5) colisionProtect = 1;
-                }
-                else{
-                    colisionProtect = 1;
-                }
-            }
-            else colisionProtect = 1;
-        }
-        else{
-            colisionProtect = 1;
-        }
-
         double anguloPigeon = this.getPigeon2().getYaw().getValueAsDouble();
 
-        LimelightHelpers.SetRobotOrientation("limelight", anguloPigeon, 0, 0, 0, 0, 0);
+        LimelightHelpers.SetRobotOrientation(frontCAM, anguloPigeon, 0, 0, 0, 0, 0);
 
-        // 3. Lê Pose do MegaTag 2
-        //pose estimator.
-        mt2Front = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
-
+        var mt2Front = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(frontCAM);
         // Pega a velocidade de giro do robô (para não confiar na câmera se estivermos girando muito rápido).
         double velocidadeGiro = Math.abs(this.getPigeon2().getAngularVelocityZDevice().getValueAsDouble());
 
         //se tiver bot pose, tiver um numero de tags superior a 0,
         // a velocidade de giro for menor que 720 dps (graus por segundo)
         // e se a distancia for menor que 4 metros, executa o resto. 
-        if (mt2Front != null && mt2Front.tagCount > 0 && velocidadeGiro < 720.0 && mt2Front.avgTagDist < 4.0) {
+        if (mt2Front != null && mt2Front.tagCount > 0 && velocidadeGiro < 360.0 && mt2Front.avgTagDist < 4.0) {
             
             // --- CÁLCULO DINÂMICO DE CONFIANÇA ---
             double xyStdDev;
@@ -348,47 +321,47 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 //999999 pois da rotação o piegon é o responsavel.
             );
         }
+
+        Pose2d poseAtual = this.getState().Pose;
+
+        SmartDashboard.putNumber("Odometria X", poseAtual.getX());
+        SmartDashboard.putNumber("Odometria Y", poseAtual.getY());
+        // se verdadeiro retorna o valor estimado, se nao mostra zero
+        SmartDashboard.putNumber("Vision X", mt2Front != null ? mt2Front.pose.getX() : 0.0);
+        SmartDashboard.putNumber("Vision Y", mt2Front != null ? mt2Front.pose.getY() : 0.0);
+
+        boolean isRed = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+        // decide qual x e y vai ser usado para mirar no Hub, pois o x e y dos elementos e diferente.
+        double alvoX = isRed ? 12.05 : 4.6;
+        double alvoY = isRed ? 4.03 : 4.03;
+        double distanciaHubMetros = Math.hypot(alvoX - poseAtual.getX(), alvoY - poseAtual.getY());
+
+
+        // pois a arena e como um plano cartesiano. entao se calcula a diferença entre a distancia do hub (tanto x quanto y)
+        //depois e feita a conta da hipotenusa com estes valores
+        //hipotenusa = raiz quadrada da soma dos dois catetos (diferença de x e y) ao quadrado
+        SmartDashboard.putNumber("Distancia HUB (m)", distanciaHubMetros);
+
+        SmartDashboard.putBoolean("Limelight/Visto?", mt2Front != null);
+        SmartDashboard.putNumber("Limelight/Tag Count", mt2Front.tagCount);
+        SmartDashboard.putNumber("Limelight/Distancia", mt2Front.avgTagDist);
+        SmartDashboard.putNumber("Limelight/Pose X", mt2Front.pose.getX());
+
+        NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight-front");
+
+        NetworkTableEntry tx = table.getEntry("tx");
+        NetworkTableEntry ty = table.getEntry("ty");
+        NetworkTableEntry tv = table.getEntry("tv");
+
+        double x = tx.getDouble(0.0);
+        double y = ty.getDouble(0.0);
+        double v = tv.getDouble(0.0);
+
+        SmartDashboard.putNumber("Limelight X", x);
+        SmartDashboard.putNumber("Limelight Y", y);
+        SmartDashboard.putNumber("Alvo Valido (TV)", v);   
+
     }
-
-    public Command alignToTargetCommand(double targetX, double targetY) {
-    SwerveRequest.FieldCentric holdAndRotate = new SwerveRequest.FieldCentric()
-        .withDriveRequestType(SwerveModule.DriveRequestType.OpenLoopVoltage);
-        
-    headingPID.enableContinuousInput(-180.0, 180.0);
-    headingPID.setTolerance(6.0);
-
-    return run(() -> {
-        Pose2d pose = this.getState().Pose;
-        Rotation2d heading = pose.getRotation();
-
-        Translation2d pose_Target = new Translation2d(targetX, targetY);
-        Translation2d offsetHood = new Translation2d(0.19719, 0);
-        Translation2d poseHood = pose.getTranslation().plus(offsetHood.rotateBy(heading));
-
-        Rotation2d targetAngleHood = pose_Target.minus(poseHood).getAngle();
-
-        OmegaCmd = headingPID.calculate(heading.getDegrees(), targetAngleHood.getDegrees());
-        OmegaCmd = MathUtil.clamp(OmegaCmd, -0.7, 0.7);
-
-        if (headingPID.atSetpoint()) {
-            OmegaCmd = 0.0;
-            Shooter.setAlingAuto(true);
-        } else {
-            Shooter.setAlingAuto(false);
-        }
-
-        fixedAngle = heading.getDegrees(); /* ALTERADO */
-
-        // 5. Aplica a rotação no Swerve
-        setControl(holdAndRotate
-            .withVelocityX(0.0)
-            .withVelocityY(0.0)
-            .withRotationalRate(OmegaCmd * 5.12));
-
-    }).until(() -> {
-        return headingPID.atSetpoint(); 
-    });
-}
 
     private void startSimThread() {
         m_lastSimTime = Utils.getCurrentTimeSeconds();
@@ -439,6 +412,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds), visionMeasurementStdDevs);
     }
 
+
     /**
      * Return the pose at a given timestamp, if the buffer is not empty.
      *
@@ -449,13 +423,21 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     public Optional<Pose2d> samplePoseAt(double timestampSeconds) {
         return super.samplePoseAt(Utils.fpgaToCurrentTime(timestampSeconds));
     }
+
+    public Rotation2d getHeading() {
+        return getPose().getRotation();
+    }
+
+    public Pose2d getPose() {
+        return this.getState().Pose;
+    }
         /**
      * "Teletransporta" o X e Y do robô no mapa virtual exatamente para a coordenada 
      * da MegaTag 2, apagando qualquer erro de derrapagem das rodas.
      */
     public void cravarOdometriaNaVisao() {
         //command de correção da odometria no autonomo, pra manter o caminho correto.
-        var mt2Front = LimelightHelpers.getBotPoseEstimate_wpiBlue(frontCAM);
+        var mt2Front = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(frontCAM);
         double velocidadeGiro = Math.abs(this.getPigeon2().getAngularVelocityZDevice().getValueAsDouble());
 
         // Só permite o teletransporte se estiver relativamente parado (< 45 deg/s) e perto de uma tag
@@ -469,4 +451,5 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             System.out.println("[VISÃO] Checkpoint Autônomo: Erro das rodas zerado!");
         }
     }
+
 }

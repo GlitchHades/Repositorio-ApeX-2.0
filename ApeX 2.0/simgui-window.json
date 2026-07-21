@@ -1,0 +1,125 @@
+{
+  "Docking": {
+    "Data": []
+  },
+  "MainWindow": {
+    "GLOBAL": {
+      "font": "Proggy Dotted",
+      "fps": "120",
+      "height": "900",
+      "maximized": "0",
+      "style": "0",
+      "userScale": "2",
+      "width": "1600",
+      "xpos": "163",
+      "ypos": "38"
+    }
+  },
+  "Window": {
+    "###/SmartDashboard/Elevator/mechanism": {
+      "Collapsed": "0",
+      "Pos": "1023,479",
+      "Size": "409,214"
+    },
+    "###/SmartDashboard/FIELD": {
+      "Collapsed": "0",
+      "Pos": "182,41",
+      "Size": "614,281"
+    },
+    "###/SmartDashboard/HoodMech/mechanism": {
+      "Collapsed": "0",
+      "Pos": "152,392",
+      "Size": "343,200"
+    },
+    "###/SmartDashboard/Indexer_Flywheel/mechanism": {
+      "Collapsed": "0",
+      "Pos": "87,401",
+      "Size": "405,200"
+    },
+    "###/SmartDashboard/IntakeMech/mechanism": {
+      "Collapsed": "0",
+      "Pos": "1025,262",
+      "Size": "408,218"
+    },
+    "###/SmartDashboard/Mechanisms/Commands/hood/Live Tuning": {
+      "Collapsed": "1",
+      "Pos": "60,60",
+      "Size": "482,80"
+    },
+    "###/SmartDashboard/Mechanisms/Commands/shooterMotors/Live Tuning": {
+      "Collapsed": "1",
+      "Pos": "60,60",
+      "Size": "552,80"
+    },
+    "###/SmartDashboard/ShooterL_Flywheel/mechanism": {
+      "Collapsed": "0",
+      "Pos": "876,363",
+      "Size": "413,200"
+    },
+    "###/SmartDashboard/ShooterR_Flywheel/mechanism": {
+      "Collapsed": "0",
+      "Pos": "497,593",
+      "Size": "413,200"
+    },
+    "###/SmartDashboard/belt_Flywheel/mechanism": {
+      "Collapsed": "0",
+      "Pos": "114,593",
+      "Size": "382,200"
+    },
+    "###/SmartDashboard/feeder_Flywheel/mechanism": {
+      "Collapsed": "0",
+      "Pos": "496,393",
+      "Size": "397,200"
+    },
+    "###/SmartDashboard/intakeL_Flywheel/mechanism": {
+      "Collapsed": "0",
+      "Pos": "1025,65",
+      "Size": "405,200"
+    },
+    "###FMS": {
+      "Collapsed": "0",
+      "Pos": "6,675",
+      "Size": "210,214"
+    },
+    "###Joysticks": {
+      "Collapsed": "0",
+      "Pos": "312,581",
+      "Size": "976,272"
+    },
+    "###NetworkTables": {
+      "Collapsed": "0",
+      "Pos": "312,349",
+      "Size": "937,228"
+    },
+    "###NetworkTables Info": {
+      "Collapsed": "0",
+      "Pos": "324,690",
+      "Size": "937,181"
+    },
+    "###Other Devices": {
+      "Collapsed": "0",
+      "Pos": "1281,25",
+      "Size": "312,868"
+    },
+    "###System Joysticks": {
+      "Collapsed": "0",
+      "Pos": "6,437",
+      "Size": "177,38"
+    },
+    "###Timing": {
+      "Collapsed": "0",
+      "Pos": "6,187",
+      "Size": "162,194"
+    },
+    "Debug##Default": {
+      "Collapsed": "0",
+      "Pos": "60,60",
+      "Size": "400,400"
+    },
+    "Robot State": {
+      "Collapsed": "0",
+      "Pos": "5,20",
+      "Size": "118,38"
+    }
+  }
+}
