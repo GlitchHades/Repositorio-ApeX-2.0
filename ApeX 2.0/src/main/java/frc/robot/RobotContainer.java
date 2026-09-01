@@ -22,10 +22,10 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.generated.*;
 import frc.robot.subsystems.*;
 import frc.robot.subsystems.Intake.intake;
+import frc.robot.subsystems.Intake.intakeFlyheel;
 import frc.robot.subsystems.InterpolatingTreeMap.ShooterMap;
 import frc.robot.subsystems.Shooter.hood;
 import frc.robot.subsystems.Shooter.indexer;
@@ -47,8 +47,9 @@ public class RobotContainer {
     public indexer index = new indexer();
     public shooterMotors shooter = new shooterMotors(index);    
     public intake intake = new intake();
+    public intakeFlyheel intakeFly = new intakeFlyheel();
 
-    public double intakeVar = 0;
+    public double intakeState = 0;
     public double climbMove = 0;
 
     private Rotation2d lockedHeading = new Rotation2d(); 
@@ -56,7 +57,7 @@ public class RobotContainer {
 
     @SuppressWarnings("unused")
     private boolean isAimLocked = false;
-    public double intakeCheckpoint = 40;
+    public double intakeCheckpoint = 160;
 
     private ShooterMap.ShotParams calculoShooterParametros(Pose2d robotPose, double distanceHood) {
         double blueX = 4.298;   
@@ -69,7 +70,7 @@ public class RobotContainer {
         
         boolean isRed = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
         if ((isRed && robotPose.getX() <= 4.6) || (!isRed && robotPose.getX() >= 11.9)) {
-            return new ShooterMap.ShotParams(2, 6000);
+            return new ShooterMap.ShotParams(1, 6000);
         }
         
         return ShooterMap.get(distanceHood);
@@ -84,7 +85,11 @@ public class RobotContainer {
 
         double distanciaAteOAlvo = robotPose.getTranslation().getDistance(hub);
 
-        return calculoShooterParametros(robotPose, distanciaAteOAlvo);
+        ShooterMap.ShotParams params = calculoShooterParametros(robotPose, distanciaAteOAlvo);
+
+        System.out.println("RobotX=" + robotPose.getX() + " dist=" + distanciaAteOAlvo + " hoodPos=" + params.hoodPosition);
+
+        return params;
     }   
 
     public RobotContainer() {
@@ -168,21 +173,12 @@ public class RobotContainer {
             .withRotationalRate(rotOutput);
         }));
 
-        Xbox.rightBumper().whileTrue(Commands.parallel(autoMiraEPrepara, shooter.indexerWhileShootin()));
-        //triggerCondition(Xbox.rightBumper(),Commands.parallel(shooter.setShooterRPM(1000, 1000),Commands.waitSeconds(0.5),autoMiraEPrepara, shooter.indexerWhileShootin()));
-        Xbox.rightBumper().onFalse(shooter.stopMotors());        
-
         Xbox.start().onTrue(drivetrain.runOnce(() -> drivetrain.configurarAnguloInicial()));
         /* Swerve drive */
 
-        Xbox.leftBumper().onTrue(Commands.runOnce(() -> intakeVar ++));
-
-        triggerCondition(() -> intakeVar == 1,
-        Commands.parallel(intake.deployIntake(150, 0, 0)));
-        triggerCondition(() -> intake.getAngle() > intakeCheckpoint, intake.setRPMintake(3500, 3500));
-        triggerCondition(() -> intakeVar == 2, Commands.runOnce(() -> intakeVar = 1));
-
-        Xbox.b().onTrue(BasePosition());
+        Xbox.b().onTrue(Hood.setAngle(Degrees.of(15)));
+        
+        Xbox.y().onTrue(Hood.hoodOff());
 
     }
 
@@ -192,18 +188,33 @@ public class RobotContainer {
     );
 
     Command BasePosition(){
-        return new SequentialCommandGroup(
-            intake.setIntakePosition(0),
-            intake.stopMotors(),
+        return Commands.parallel(
+            goBack(),
+            Hood.hoodOff(),
             shooter.stopMotors(),
+            Commands.runOnce(() -> intakeState = 0),
             index.stopMotors());
     }
-    
-    private void triggerCondition(BooleanSupplier condition, Command command) {
-        new Trigger(condition).onTrue(command);
+
+    Command retract(){
+        return Commands.parallel(
+            goBack(),
+            intakeFly.setFlywheelSpeeds(RPM.of(0), RPM.of(0))
+            );
     }
- 
+
+    Command goBack(){
+        return Commands.parallel(
+            intake.retract()
+            .until(() -> intakeCheckpoint < 30)
+            .finallyDo(() -> intake.zeroDutyCycle()));
+    }
+    
+    @SuppressWarnings("unused")
+    private void triggerCondition(BooleanSupplier condition, Command command) {
+        new Trigger(condition).onTrue(command);}
+
     Command getAutonomousCommand() {
-        throw new UnsupportedOperationException("Unimplemented method 'getAutonomousCommand'");
+        return Commands.none();
     }
 }

@@ -11,6 +11,9 @@
       "/SmartDashboard/Mechanisms/Commands/ElevatorMotor/Down": "Command",
       "/SmartDashboard/Mechanisms/Commands/ElevatorMotor/Up": "Command",
       "/SmartDashboard/Mechanisms/Commands/ElevatorMotor/ZeroEncoder": "Command",
+      "/SmartDashboard/Mechanisms/Commands/HoodMech/Down": "Command",
+      "/SmartDashboard/Mechanisms/Commands/HoodMech/Up": "Command",
+      "/SmartDashboard/Mechanisms/Commands/HoodMech/ZeroEncoder": "Command",
       "/SmartDashboard/Mechanisms/Commands/HoodMotor/Down": "Command",
       "/SmartDashboard/Mechanisms/Commands/HoodMotor/Up": "Command",
       "/SmartDashboard/Mechanisms/Commands/HoodMotor/ZeroEncoder": "Command",
@@ -36,6 +39,7 @@
       "/SmartDashboard/Mechanisms/Commands/hood/Live Tuning": "Command",
       "/SmartDashboard/Mechanisms/Commands/indexer/Live Tuning": "Command",
       "/SmartDashboard/Mechanisms/Commands/intake/Live Tuning": "Command",
+      "/SmartDashboard/Mechanisms/Commands/intakeFlyheel/Live Tuning": "Command",
       "/SmartDashboard/Mechanisms/Commands/intakeL_FlyWheel/Down": "Command",
       "/SmartDashboard/Mechanisms/Commands/intakeL_FlyWheel/Up": "Command",
       "/SmartDashboard/Mechanisms/Commands/intakeL_FlyWheel/ZeroEncoder": "Command",
@@ -51,11 +55,6 @@
       "/SmartDashboard/intakeR_Flywheel/mechanism": "Mechanism2d"
     },
     "windows": {
-      "/SmartDashboard/Elevator/mechanism": {
-        "window": {
-          "visible": true
-        }
-      },
       "/SmartDashboard/FIELD": {
         "bottom": 1914,
         "height": 8.069275856018066,

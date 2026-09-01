@@ -2,7 +2,6 @@ package frc.robot.subsystems.Shooter;
 
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Inches;
-import static edu.wpi.first.units.Units.Pounds;
 import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.Seconds;
 
@@ -35,11 +34,9 @@ public class indexer extends SubsystemBase {
     public static final SparkMax sparkBelt = new SparkMax(40, MotorType.kBrushless);
 
     private SmartMotorControllerConfig indexControllerConfig = new SmartMotorControllerConfig(this)
-     .withControlMode(ControlMode.CLOSED_LOOP)
+      .withControlMode(ControlMode.CLOSED_LOOP)
       .withClosedLoopController(1, 0, 0)
-      .withSimClosedLoopController(1, 0, 0)
-      .withFeedforward(new SimpleMotorFeedforward(0., 0.12, 0))
-      .withSimFeedforward(new SimpleMotorFeedforward(0, 0.12, 0))
+      .withFeedforward(new SimpleMotorFeedforward(0.1, 0.1, 0.1))
       .withTelemetry("Indexer_FlyWheel", TelemetryVerbosity.HIGH)
       .withGearing(new MechanismGearing(GearBox.fromReductionStages(1)))
       .withMotorInverted(false)
@@ -49,30 +46,24 @@ public class indexer extends SubsystemBase {
       .withOpenLoopRampRate(Seconds.of(0.1));
 
     private SmartMotorControllerConfig feederControllerConfig = new SmartMotorControllerConfig(this)
-     .withControlMode(ControlMode.CLOSED_LOOP)
-      .withClosedLoopController(0.2, 0, 0)
-      .withSimClosedLoopController(0.2, 0, 0)
+      .withControlMode(ControlMode.CLOSED_LOOP)
+      .withClosedLoopController(0.4, 0, 0)
       .withFeedforward(new SimpleMotorFeedforward(0., 0, 0))
-      .withSimFeedforward(new SimpleMotorFeedforward(0, 0, 0))
       .withTelemetry("feeder_FlyWheel", TelemetryVerbosity.HIGH)
       .withGearing(new MechanismGearing(GearBox.fromReductionStages(1)))
       .withMotorInverted(true)
       .withIdleMode(MotorMode.COAST)
-      .withStatorCurrentLimit(Amps.of(80))
       .withClosedLoopRampRate(Seconds.of(0.1))
       .withOpenLoopRampRate(Seconds.of(0.1));
 
     private SmartMotorControllerConfig beltControllerConfig = new SmartMotorControllerConfig(this)
-     .withControlMode(ControlMode.CLOSED_LOOP)
-      .withClosedLoopController(0.2, 0, 0)
-      .withSimClosedLoopController(0.2, 0, 0)
+      .withControlMode(ControlMode.CLOSED_LOOP)
+      .withClosedLoopController(0.4, 0, 0)
       .withFeedforward(new SimpleMotorFeedforward(0., 0, 0))
-      .withSimFeedforward(new SimpleMotorFeedforward(0, 0.1, 0))
       .withTelemetry("belt_FlyWheel", TelemetryVerbosity.HIGH)
       .withGearing(new MechanismGearing(GearBox.fromReductionStages(1)))
       .withMotorInverted(false)
       .withIdleMode(MotorMode.COAST)
-      .withStatorCurrentLimit(Amps.of(80))
       .withClosedLoopRampRate(Seconds.of(0.1))
       .withOpenLoopRampRate(Seconds.of(0.1));
 
@@ -81,32 +72,28 @@ public class indexer extends SubsystemBase {
     private SmartMotorController feeder = new SparkWrapper(sparkFeeder, DCMotor.getNEO(1), feederControllerConfig);
 
     private final FlyWheelConfig indexFlyWheelConfig = new FlyWheelConfig() 
-    .withSmartMotorController(indexer) 
-    .withDiameter(Inches.of(4))
-    .withMass(Pounds.of(0.5))
+    .withDiameter(Inches.of(2))
     .withTelemetry("Indexer_Flywheel", TelemetryVerbosity.HIGH);
 
         
     private final FlyWheelConfig feederFlyWheelConfig = new FlyWheelConfig() 
-    .withSmartMotorController(feeder) 
-    .withDiameter(Inches.of(4))
-    .withMass(Pounds.of(0.5))
+    .withDiameter(Inches.of(2))
     .withTelemetry("feeder_Flywheel", TelemetryVerbosity.HIGH);
 
     private final FlyWheelConfig beltFlyWheelConfig = new FlyWheelConfig() 
-    .withSmartMotorController(belt) 
-    .withDiameter(Inches.of(4))
-    .withMass(Pounds.of(0.5))
+    .withDiameter(Inches.of(2))
     .withTelemetry("belt_Flywheel", TelemetryVerbosity.HIGH);
     
-    private FlyWheel indexFlyWheel = new FlyWheel(indexFlyWheelConfig);
-    private FlyWheel feederFlyWheel = new FlyWheel(feederFlyWheelConfig);
-    private FlyWheel beltFlyWheel = new FlyWheel(beltFlyWheelConfig);
+    private FlyWheel indexFlyWheel = new FlyWheel(indexFlyWheelConfig, indexer);
+    private FlyWheel feederFlyWheel = new FlyWheel(feederFlyWheelConfig, feeder);
+    private FlyWheel beltFlyWheel = new FlyWheel(beltFlyWheelConfig, belt);
 
-    public Command setIndexDutyCycle(double DutyCycle) {
-        return Commands.run (() -> indexFlyWheel.setDutyCycleSetpoint(DutyCycle), this);
-    }
-
+    /**
+     * Set speed of the motors responsible of indexer the balls
+     * @param fVelocity
+     * @param bVelocity
+     * @param iVelocity
+     */
     public Command setFlywheelSpeeds(AngularVelocity fVelocity, AngularVelocity bVelocity, AngularVelocity iVelocity) {
         return Commands.run(() -> {
             indexer.setVelocity(iVelocity);
@@ -115,25 +102,53 @@ public class indexer extends SubsystemBase {
         }, this);
     }
 
+    /**
+     * Simple command that set velocity of indexer
+     * @param rpmDesejado
+     */
     public Command setVelocity(double rpmDesejado){
         return indexFlyWheel.run(RPM.of(rpmDesejado));
     }
 
+    /**
+     * @param feeder
+     * @param belt
+     * @param indexer
+     * @return Velocity in rpm of all indexer motors
+     */
     public Command setBothVelocity(double feeder,double belt,double indexer){
         return setFlywheelSpeeds(RPM.of(-feeder), RPM.of(belt), RPM.of(indexer));
     }
 
-    public Command setBothVelocityShootin(DoubleSupplier feederRate, DoubleSupplier beltRate, DoubleSupplier indexerRate) {
+    /**
+     * Set the velocity of all motors in indexer mechanics with limits of [-1] and [1]
+     * @value Is recommended the values of 0.5 , 0.7 and 0.5, that values are without any type of test
+     * @param feederRate
+     * @param beltRate
+     * @param indexerRate
+     */
+    public Command setAllVelocityShootin(DoubleSupplier feederRate, DoubleSupplier beltRate, DoubleSupplier indexerRate) {
         return Commands.run(() -> {
             feeder.setVelocity(RPM.of(-feederRate.getAsDouble()));
             belt.setVelocity(RPM.of(beltRate.getAsDouble()));
             
             indexer.setVelocity(RPM.of(indexerRate.getAsDouble()));
-        }, this);
+            }, this).finallyDo(interrupted -> {
+            feeder.setVelocity(RPM.of(0));
+            belt.setVelocity(RPM.of(0));
+            indexer.setVelocity(RPM.of(0));
+        });
     }
 
+    /**
+     * @return setDutyCycleSetpoint in 0
+     */
     public Command stopMotors(){
-        return setBothVelocity(0, 0, 0);
+        return Commands.runOnce(() -> {
+            feeder.setDutyCycle(0); 
+            belt.setDutyCycle(0); 
+            indexer.setDutyCycle(0);
+        }, this);
     }
 
     @Override
